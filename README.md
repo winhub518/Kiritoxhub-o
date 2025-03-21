@@ -13,10 +13,8 @@ local Section = Tab:AddSection({
 })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local BallService = ReplicatedStorage.Packages.Knit.Services.BallService.RE
+local player = game.Players.LocalPlayer
 
 -- ✅ ออโต้สไลด์ + ดูดบอล
 Tab:AddToggle({
@@ -24,26 +22,20 @@ Tab:AddToggle({
 	Default = false,
 	Callback = function(Value)
 		if Value then  
-			local SlideEvent = ReplicatedStorage.Packages.Knit.Services.BallService.RE.Slide
-
 			-- 🏃 กดปุ่มสไลด์
-			SlideEvent:FireServer()
+			BallService.Slide:FireServer()
 
 			-- 🎯 ดูดบอลเข้าหาตัว
 			task.spawn(function()
 				while Value do
-					local ball
-					for _, obj in pairs(workspace:GetChildren()) do
-						if obj:IsA("Model") and obj:FindFirstChild("BallAnims") then
-							ball = obj
-							break
+					local ball = workspace:FindFirstChild("Football")
+
+					if ball and player.Character then
+						local root = player.Character:FindFirstChild("HumanoidRootPart")
+						if root then
+							ball.CFrame = root.CFrame * CFrame.new(0, 0, -2) -- ดูดบอลมาอยู่ข้างหน้า
 						end
 					end
-
-					if character and ball then
-						ball:PivotTo(humanoidRootPart.CFrame * CFrame.new(0, 0, -2)) -- ย้ายบอลมาอยู่ข้างหน้า
-					end
-
 					task.wait(0.1) -- ปรับความเร็ว
 				end
 			end)
@@ -66,13 +58,12 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
     if gameProcessed then return end
     
     if autoCurveShot and input.UserInputType == Enum.UserInputType.MouseButton1 then -- คลิกซ้ายยิง
-        local ShootEvent = ReplicatedStorage.Packages.Knit.Services.BallService.RE.Shoot
+        local args = {
+            [1] = 79.07267771661282, -- ค่าพลังยิง
+            [4] = Vector3.new(0.132, -0.136, 0.981) + Vector3.new(0.2, 0.1, 0.3) -- เพิ่มแรงโค้ง
+        }
 
-        -- 📌 ดักค่าที่ถูกต้อง (ต้องลองเอง)
-        local direction = humanoidRootPart.CFrame.LookVector * 100
-        local curveEffect = Vector3.new(15, 5, 25) -- ปรับให้บอลโค้ง
-
-        -- 🚀 ยิงบอล
-        ShootEvent:FireServer(direction + curveEffect)
+        -- 🚀 ยิงบอลแบบโค้ง
+        BallService.Shoot:FireServer(unpack(args))
     end
 end)
