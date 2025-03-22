@@ -1,3 +1,4 @@
+-- โหลด Orion Library
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
 -- สร้าง UI หลัก
@@ -21,57 +22,94 @@ local MainTab = Window:MakeTab({
     PremiumOnly = false
 })
 
+-- ตัวแปรควบคุมการทำงาน
+local isAutoFarmOn = false
+
+-- ฟังก์ชันค้นหาบอล
+function FindBall()
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Part") and obj.Name:lower():find("ball") then
+            return obj
+        end
+    end
+    return nil
+end
+
+-- ฟังก์ชันค้นหาประตู
+function FindGoal()
+    for _, v in pairs(workspace:GetChildren()) do
+        if v:IsA("Part") and v.Name:lower():find("goal") then
+            return v
+        end
+    end
+    return nil
+end
+
+-- ฟังก์ชันวาร์ปไปที่ประตู
+function WarpToGoal()
+    local player = game.Players.LocalPlayer
+    if player.Character then
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        local goal = FindGoal()
+        if hrp and goal then
+            hrp.CFrame = goal.CFrame + Vector3.new(0, 5, 0) -- วาร์ปไปสูงกว่าประตูนิดหน่อย
+        end
+    end
+end
+
+-- ฟังก์ชันยิงออโต้
+function AutoShoot()
+    local args = {
+        [1] = 79.07267771661282, -- กำหนดแรงยิง
+        [4] = Vector3.new(0.13285797834396362, -0.13623803853988647, 0.9817270636558533) -- ทิศทางลูกบอล
+    }
+    game:GetService("ReplicatedStorage").Packages.Knit.Services.BallService.RE.Shoot:FireServer(unpack(args))
+end
+
+-- ฟังก์ชันออโต้ฟาร์ม (ดูดบอล + วาร์ป + ยิง)
+function AutoFarm()
+    while isAutoFarmOn do
+        local player = game.Players.LocalPlayer
+        local Ball = FindBall()
+
+        if Ball then
+            -- 1. ดูดบอล
+            Ball.CFrame = player.Character.HumanoidRootPart.CFrame
+            task.wait(2) -- รอให้บอลมาติดตัวก่อน
+            
+            -- 2. วาร์ปไปที่หน้าประตู
+            WarpToGoal()
+            task.wait(1)
+
+            -- 3. ยิงออโต้
+            AutoShoot()
+            task.wait(10) -- รอให้ลูกบอลเกิดใหม่
+        end
+
+        task.wait(0.5)
+    end
+end
+
+ 
+-- ปุ่ม Toggle ออโต้ฟาร์ม
 MainTab:AddToggle({
     Name = "ออโต้ไก่ตัน 🐔🔥",
     Default = false,
-    Callback = function()
--- ดรอปของ 
-
-while Loop do
-game:GetService("ReplicatedStorag").Remotes.DropItem:FireServer()
-       wait(0.5)
-
-end
+    Callback = function(state)
+        isAutoFarmOn = state
+        if isAutoFarmOn then
+            task.spawn(AutoFarm) -- เริ่มฟาร์มออโต้
+        end
+    end
 })
 
-MainTab:AddToggle({
-    Name = "ออโต้เก็บไอเทม",
-    Default = false,
+-- ปุ่มปิด UI
+MainTab:AddButton({
+    Name = "❌ ปิดเมนู",
     Callback = function()
--- เก็บไอเทม
-  
-local player = game.Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-
-local distanceThreshold = 5 -- ระยะที่ต้องเข้าใกล้ก่อนเก็บของ
-
-local function collectItem(item)
-    if item then
-        humanoid:MoveTo(item.Position) -- เดินไปหาไอเท็ม
-        
-        -- ตรวจสอบระยะห่างระหว่างตัวละครกับไอเท็ม
-        while (humanoidRootPart.Position - item.Position).Magnitude > distanceThreshold do
-            wait(0.1) -- รอจนกว่าจะเข้าใกล้พอ
-        end
-        
-        wait(0.5) -- หน่วงเวลาเล็กน้อย
-        local remote = game:GetService("ReplicatedStorage").Remotes:FindFirstChild("StoreItem")
-        if remote then
-            remote:FireServer(item) -- ส่งคำสั่งเก็บของไปที่เซิร์ฟเวอร์
-        end
+        OrionLib:Destroy()
     end
-end
+})
 
-while true do
-    local item = workspace.RuntimeItems:FindFirstChild("Newspaper") -- ค้นหาไอเท็ม Newspaper
-    if item then
-        collectItem(item)
-    end
-    wait(1) -- ตรวจสอบทุก 1 วินาที
-end
-})        
-
-
-
+-- แสดง UI
+OrionLib:Init()
