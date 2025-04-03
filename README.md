@@ -1,115 +1,28 @@
--- โหลด Orion Library
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))() local Window = OrionLib:MakeWindow({Name = "Fly GUI", HidePremium = false, SaveConfig = true, ConfigFolder = "OrionConfig"})
 
--- สร้าง UI หลัก
-local Window = OrionLib:MakeWindow({
-    Name = "Ceera Hub⚡",
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "CeeraConfig"
-})
+local FlySpeed = 50 local Flying = false local AutoAttack = false local DamageMultiplier = 1 local Player = game.Players.LocalPlayer local Character = Player.Character or Player.CharacterAdded:Wait() local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart") local BodyVelocity
 
-local MainTab = Window:MakeTab({
-    Name = "Home 🏠",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
+local function StartFlying() if Flying then return end Flying = true BodyVelocity = Instance.new("BodyVelocity") BodyVelocity.Velocity = Vector3.new(0, FlySpeed, 0) BodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000) BodyVelocity.Parent = HumanoidRootPart end
 
--- สร้างหน้า UI
-local MainTab = Window:MakeTab({
-    Name = "Main",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
+local function StopFlying() Flying = false if BodyVelocity then BodyVelocity:Destroy() BodyVelocity = nil end end
 
--- ตัวแปรควบคุมการทำงาน
-local isAutoFarmOn = false
+local function StartAutoAttack() AutoAttack = true while AutoAttack do local Tool = Player.Character:FindFirstChildOfClass("Tool") if Tool and Tool:FindFirstChild("Activate") then Tool:Activate() end wait(0.5) end end
 
--- ฟังก์ชันค้นหาบอล
-function FindBall()
-    for _, obj in pairs(workspace:GetChildren()) do
-        if obj:IsA("Part") and obj.Name:lower():find("ball") then
-            return obj
-        end
-    end
-    return nil
-end
+local function StopAutoAttack() AutoAttack = false end
 
--- ฟังก์ชันค้นหาประตู
-function FindGoal()
-    for _, v in pairs(workspace:GetChildren()) do
-        if v:IsA("Part") and v.Name:lower():find("goal") then
-            return v
-        end
-    end
-    return nil
-end
+local function ApplyDamageMultiplier() for _, tool in pairs(Player.Backpack:GetChildren()) do if tool:IsA("Tool") and tool:FindFirstChild("Handle") then local DamageScript = tool:FindFirstChild("Damage") if DamageScript and DamageScript:IsA("NumberValue") then DamageScript.Value = DamageScript.Value * DamageMultiplier end end end end
 
--- ฟังก์ชันวาร์ปไปที่ประตู
-function WarpToGoal()
-    local player = game.Players.LocalPlayer
-    if player.Character then
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        local goal = FindGoal()
-        if hrp and goal then
-            hrp.CFrame = goal.CFrame + Vector3.new(0, 5, 0) -- วาร์ปไปสูงกว่าประตูนิดหน่อย
-        end
-    end
-end
+Window:MakeTab({ Name = "Main", Icon = "rbxassetid://4483345998", PremiumOnly = false })
 
--- ฟังก์ชันยิงออโต้
-function AutoShoot()
-    local args = {
-        [1] = 79.07267771661282, -- กำหนดแรงยิง
-        [4] = Vector3.new(0.13285797834396362, -0.13623803853988647, 0.9817270636558533) -- ทิศทางลูกบอล
-    }
-    game:GetService("ReplicatedStorage").Packages.Knit.Services.BallService.RE.Shoot:FireServer(unpack(args))
-end
+local MainTab = Window:MakeTab({ Name = "Fly Controls", Icon = "rbxassetid://4483345998", PremiumOnly = false })
 
--- ฟังก์ชันออโต้ฟาร์ม (ดูดบอล + วาร์ป + ยิง)
-function AutoFarm()
-    while isAutoFarmOn do
-        local player = game.Players.LocalPlayer
-        local Ball = FindBall()
+MainTab:AddToggle({ Name = "Enable Fly", Default = false, Callback = function(Value) if Value then StartFlying() else StopFlying() end end })
 
-        if Ball then
-            -- 1. ดูดบอล
-            Ball.CFrame = player.Character.HumanoidRootPart.CFrame
-            task.wait(2) -- รอให้บอลมาติดตัวก่อน
-            
-            -- 2. วาร์ปไปที่หน้าประตู
-            WarpToGoal()
-            task.wait(1)
+MainTab:AddSlider({ Name = "Fly Speed", Min = 10, Max = 200, Default = 50, Increment = 5, Callback = function(Value) FlySpeed = Value if Flying and BodyVelocity then BodyVelocity.Velocity = Vector3.new(0, FlySpeed, 0) end end })
 
-            -- 3. ยิงออโต้
-            AutoShoot()
-            task.wait(10) -- รอให้ลูกบอลเกิดใหม่
-        end
+MainTab:AddToggle({ Name = "Auto Attack", Default = false, Callback = function(Value) if Value then StartAutoAttack() else StopAutoAttack() end end })
 
-        task.wait(0.5)
-    end
-end
+MainTab:AddSlider({ Name = "Damage Multiplier", Min = 1, Max = 10, Default = 1, Increment = 0.5, Callback = function(Value) DamageMultiplier = Value ApplyDamageMultiplier() end })
 
- 
--- ปุ่ม Toggle ออโต้ฟาร์ม
-MainTab:AddToggle({
-    Name = "ออโต้ไก่ตัน 🐔🔥",
-    Default = false,
-    Callback = function(state)
-        isAutoFarmOn = state
-        if isAutoFarmOn then
-            task.spawn(AutoFarm) -- เริ่มฟาร์มออโต้
-        end
-    end
-})
-
--- ปุ่มปิด UI
-MainTab:AddButton({
-    Name = "❌ ปิดเมนู",
-    Callback = function()
-        OrionLib:Destroy()
-    end
-})
-
--- แสดง UI
 OrionLib:Init()
+
